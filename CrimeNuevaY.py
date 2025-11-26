@@ -83,6 +83,7 @@ else:
 
  
 
+# 4. crear la graficas para su analisis
 
 # 1. Crear la "figura" y asignar a la variable 'fig'
 
@@ -131,21 +132,21 @@ if 'ARREST_DATE' in df.columns:
 plt.tight_layout()
 
 # -----------------------------------------------------------
-# GUARDADO SEGURO
+# GUARDADO SEGURO (Se guarda imagen si no se se puede visualizar la gráfica)
 # -----------------------------------------------------------
-ruta_guardado = '/home/cristian/Documentos/MAchine_learning/Proyecto_python/Graficas'
+ruta_guardado = '/home/cristian/Documentos/MAchine_learning/Proyecto_python/Graficas' # se debe modificar la ruta segun donde se este ejecutando
 
 if not os.path.exists(ruta_guardado):
     os.makedirs(ruta_guardado)
 
-nombre_archivo = 'analisis_inicial_nypd.png'
+nombre_archivo = 'analisis_inicial_nypd.png' # se nombra la gráfica, este puede modificarse a al que se considere mas adecuado
 ruta_completa = os.path.join(ruta_guardado, nombre_archivo)
 
 
 #Asegura que se guarde lo que está en la variable 'fig', no un lienzo vacío.
 fig.savefig(ruta_completa, dpi=300, bbox_inches='tight')
 
-print(f"¡Gráfica guardada (sin estar en blanco) en: {ruta_completa}")
+print(f"¡Gráfica guardada (sin estar en blanco) en: {ruta_completa}")  # mensaje de que la gráfica no presento novedad al guardarla
 
 # plt.show() 
 plt.close(fig) # Buena práctica para liberar memoria RAM
@@ -199,3 +200,49 @@ fig.savefig(ruta_completa, dpi=300, bbox_inches='tight')
 
 print(f"Matriz de correlación guardada en: {ruta_completa}")
 plt.close(fig)
+
+# 5. ----- Ingeniería de Características (Feature Engineering) -----
+
+# 1. LIMPIEZA DE NULOS CRÍTICOS
+# Se eliminan filas si faltan Latitud/Longitud o la variable objetivo
+print(f"Filas antes de limpiar: {len(df)}") # obtiene el número de filas que tiene el DataFrame inicial
+df = df.dropna(subset=['Latitude', 'Longitude', 'LAW_CAT_CD'])   # en pandas sirve para eliminar filas que tengan valores nulos (NaN) en columnas específicas
+print(f"Filas después de limpiar Lat/Lon: {len(df)}") # obtiene el número de filas que tiene el DataFrame despues de la limpieza
+
+# 2. CREAR VARIABLE OBJETIVO BINARIA
+# 1 = Felonía (Grave), 0 = Delito Menor/Violación
+df['Target'] = df['LAW_CAT_CD'].apply(lambda x: 1 if x == 'F' else 0) # crea una nueva columna llamada target ( objetivo) y le asigna los valores binarios
+
+print("\nVerificación de la Variable Objetivo (Target):")
+print(df['Target'].value_counts(normalize=True))   # imprimimos lo que hay en la columna para verifficar que quede bien el target
+
+# 3. EXTRAER DATOS DE LA FECHA (Tus X temporales)
+# Transforma los valores de texto (strings), números o formatos ambiguos en un objeto datetime de pandas, que se entiende como fecha y hora reales
+df['ARREST_DATE'] = pd.to_datetime(df['ARREST_DATE'])
+
+df['Hour'] = df['ARREST_DATE'].dt.hour
+df['Day'] = df['ARREST_DATE'].dt.dayofweek # 0=Lunes, 6=Domingo
+df['Month'] = df['ARREST_DATE'].dt.month
+df['Year'] = df['ARREST_DATE'].dt.year 
+
+# 4. SELECCIONAR TUS VARIABLES FINALES
+# selecionamos las columnas con las que vamos a trabajar en la cual nuestro objetivo es Target
+columnas_a_usar = [
+    'ARREST_BORO',  # Dónde (Distrito)
+    'AGE_GROUP',    # Quién (Edad)
+    'PERP_SEX',     # Quién (Sexo)
+    'PERP_RACE',    # Quién (Raza)
+    'Latitude',     # Dónde Exacto
+    'Longitude',    # Dónde Exacto
+    'Hour',         # Cuándo
+    'Day',          # Cuándo
+    'Month',        # Cuándo
+    'Target'        # Lo que vamos predecir
+]
+
+# Creamos el DataFrame final limpio, el cual deberia funcionar para el siguiente paso
+df_model = df[columnas_a_usar].copy()
+
+print("\n--- Vistazo al Dataset listo para el Modelo ---")
+print(df_model.head())
+print("\nColumnas finales:", df_model.columns.tolist())
